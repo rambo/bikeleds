@@ -1,14 +1,13 @@
+#include "settings.h"
 #include <elapsedMillis.h>
 #include <FastLED.h>
-
-#define LOW_DP 4
-#define LOW_NL 31
-#define HIGH_DP 2
-#define HIGH_NL 58
+#include <MsgPacketizer.h>
+#include "BluetoothSerial.h"
 
 
 CRGBArray<LOW_NL> low;
 CRGBArray<HIGH_NL> high;
+BluetoothSerial SerialBT;
 
 #include "esp_system.h"
 const int wdtTimeout = 1000;  //time in ms to trigger the watchdog
@@ -19,59 +18,97 @@ void IRAM_ATTR resetModule() {
   esp_restart();
 }
 
-
-void setup() {
-  Serial.begin(115200);
-  FastLED.addLeds<WS2812B,LOW_DP,GRB>(low,LOW_NL);
-  FastLED.addLeds<WS2812B,HIGH_DP,GRB>(high,HIGH_NL);
-  FastLED.setBrightness(64);
-
-
-  timer = timerBegin(0, 80, true);                  //timer 0, div 80
-  timerAttachInterrupt(timer, &resetModule, true);  //attach callback
-  timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
-  timerAlarmEnable(timer);                          //enable interrupt
-
-  Serial.println(F("Booted"));
+inline void show_check_interlock()
+{
+    // TODO: Check the interlock...
+    FastLED.show();
 }
 
+void setup()
+{
+    timer = timerBegin(0, 80, true);                  //timer 0, div 80
+    timerAttachInterrupt(timer, &resetModule, true);  //attach callback
+    timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
+    timerAlarmEnable(timer);                          //enable interrupt
+    timerWrite(timer, 0); //reset timer (feed watchdog)
 
-int8_t high_dir = 1;
-int8_t low_dir = 1;
-int8_t high_ledno = 0;
-int8_t low_ledno = 0;
+    Serial.begin(115200);
+    SerialBT.begin(SPP_DEVICE_NAME);
+    FastLED.addLeds<WS2812B,LOW_DP,GRB>(low,LOW_NL);
+    FastLED.addLeds<WS2812B,HIGH_DP,GRB>(high,HIGH_NL);
+    FastLED.setBrightness(DEFAULT_BRIGHTNESS);
+    
+    MsgPacketizer::subscribe(SerialBT, IDX_CMD,
+        [&](const MsgPack::arr_size_t& sz, const String& cmd, const float val)
+        {
+            Serial.println(F("Got command packet"));
+            if (sz.size() == 2) // if array size is correct
+            {
+                Serial.print(F("Got command: "));
+                Serial.print(cmd);
+                Serial.print(F(" with value: "));
+                Serial.print(val, DEC);
+                Serial.println();
 
-void fadeall() { 
-  for(int i = 0; i < LOW_NL; i++) { low[i].nscale8(250); }
-  for(int i = 0; i < HIGH_NL; i++) { high[i].nscale8(250); }
+                if (cmd.equals("brightness"))
+                {
+                    FastLED.setBrightness(val);
+                    Serial.println(F("Brightness set"));
+                    // TODO: send ACK reply on BT
+                }
+                show_check_interlock();
+                
+            }
+        }
+    );
+    MsgPacketizer::subscribe(SerialBT, IDX_LEDS_LOW,
+        [&](const MsgPack::arr_t<uint8_t>& inarr)
+        {
+            Serial.println(F("Got low leds packet"));
+            Serial.print(F("arr size "));
+            Serial.println(inarr.size(), DEC);
+            if (inarr.size() != LOW_NL*3)
+            {
+                // TODO: Send NACK reply on BT
+                Serial.println(F("Input array is incorrect size"));
+                return;
+            }
+            // Copy the vector to the RGB array
+            memcpy8(low, inarr.data(), inarr.size());
+            show_check_interlock();
+            // TODO: send ACK reply on BT
+        }
+    );
+    MsgPacketizer::subscribe(SerialBT, IDX_LEDS_HIGH,
+        [&](const MsgPack::arr_t<uint8_t>& inarr)
+        {
+            Serial.println(F("Got high leds packet"));
+            Serial.print(F("arr size "));
+            Serial.println(inarr.size(), DEC);
+            if (inarr.size() != HIGH_NL*3)
+            {
+                // TODO: Send NACK reply on BT
+                Serial.println(F("Input array is incorrect size"));
+                return;
+            }
+            // Copy the vector to the RGB array
+            memcpy8(high, inarr.data(), inarr.size());
+            show_check_interlock();
+            // TODO: send ACK reply on BT
+        }
+    );
+    
+    
+    Serial.print("My BT name is: ");
+    Serial.println(SPP_DEVICE_NAME);
+    Serial.println(F("Booted"));
+    timerWrite(timer, 0); //reset timer (feed watchdog)
 }
 
 
 
 void loop() {
   timerWrite(timer, 0); //reset timer (feed watchdog)
-  FastLED.show();
-  fadeall();
-  high[high_ledno] = CHSV(177, 64, 255);
-  low[low_ledno] = CHSV(177, 64, 255);
-  low_ledno = low_ledno+low_dir;
-  if (low_ledno < 0) {
-    low_dir = 1;
-    Serial.println(F("low_dir changed to 1"));
-  }
-  if (low_ledno >= (LOW_NL -1 )) {
-    low_dir = -1;
-    Serial.println(F("low_dir changed to -1"));
-  }
-  high_ledno = high_ledno+high_dir;
-  if (high_ledno < 0) {
-    high_dir = 1;
-    Serial.println(F("high_dir changed to 1"));
-  }
-  if (high_ledno >= (HIGH_NL -1 )) {
-    high_dir = -1;
-    Serial.println(F("high_dir changed to -1"));
-  }
-  delay(10);
+  MsgPacketizer::parse();
 
 }
