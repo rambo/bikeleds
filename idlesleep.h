@@ -74,14 +74,14 @@ void IdleChecker::run(uint32_t now)
         return;
     }
     // If we got new connection, set state and reset the idle timer
-    if (SerialBT.connected() && GLOBAL_system_state == STATE_IDLE)
+    if (GLOBAL_BT_connected && GLOBAL_system_state == STATE_IDLE)
     {
         Serial.println(F("Got BT connection"));
         GLOBAL_system_state = STATE_CONNECTED_IDLE;
         GLOBAL_idle_timer = 0;
     }
     // Go idle if connection is lost (and we're not in a pattern)
-    if (GLOBAL_system_state != STATE_IDLE && !SerialBT.connected())
+    if (GLOBAL_system_state != STATE_IDLE && !GLOBAL_BT_connected)
     {
         Serial.println(F("BT Disconnected, goind idle"));
         GLOBAL_idle_timer = 0;

@@ -8,11 +8,17 @@
 #include <FastLED.h>
 #include <MsgPacketizer.h>
 #include "BluetoothSerial.h"
-
+#include "esp_bt.h"
+#include "esp_bt_main.h"
+#include "esp_gap_bt_api.h"
+#include "esp_bt_device.h"
+#include "esp_spp_api.h"
 
 CRGBArray<LOW_NL> low;
 CRGBArray<HIGH_NL> high;
 BluetoothSerial SerialBT;
+
+
 
 #include "esp_system.h"
 const int wdtTimeout = 1000;  //time in ms to trigger the watchdog
@@ -43,6 +49,25 @@ RTC_DATA_ATTR state_t GLOBAL_system_state = STATE_BOOT;
 elapsedMillis GLOBAL_last_active_command;
 elapsedMillis GLOBAL_idle_timer;
 
+bool GLOBAL_BT_connected;
+void bt_event_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
+{
+    Serial.println(F("BT Activity, reset idle timer"));
+    GLOBAL_idle_timer = 0;
+    if (event == ESP_SPP_SRV_OPEN_EVT)
+    {
+        Serial.println(F("ESP_SPP_SRV_OPEN_EVT"));
+        GLOBAL_BT_connected = true;
+    }
+    if (event == ESP_SPP_CLOSE_EVT)
+    {
+        Serial.println(F("ESP_SPP_CLOSE_EVT"));
+        GLOBAL_BT_connected = false;
+    }
+    // There was activity on BT so reset the idle timer
+}
+
+
 #include "idlesleep.h"
 IdleChecker idletask(5); // Check idle timers every 5 ms
 #include "iotask.h"
@@ -60,6 +85,7 @@ void setup()
 
     Serial.begin(115200);
     SerialBT.begin(SPP_DEVICE_NAME);
+    SerialBT.register_callback(&bt_event_cb);
     FastLED.addLeds<WS2812B,LOW_DP,GRB>(low,LOW_NL);
     FastLED.addLeds<WS2812B,HIGH_DP,GRB>(high,HIGH_NL);
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);

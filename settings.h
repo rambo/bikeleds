@@ -14,7 +14,7 @@
 
 #define CONNECTED_MAX_IDLE 60*5*1000 // 5 minutes of idle will sleep even if connected
 #define CONNECTED_ACTIVE_TIMEOUT 2*1000
-#define DISCONNECTED_MAX_IDLE 5*1000
-#define IDLE_SLEEP_TIME 2*1000
+#define DISCONNECTED_MAX_IDLE 10*1000
+#define IDLE_SLEEP_TIME 5*1000
 
 #endif
