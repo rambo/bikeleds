@@ -26,6 +26,12 @@ IdleChecker::IdleChecker(uint32_t _rate)
 void IdleChecker::enter_sleep()
 {
     Serial.println(F("Going to sleep"));
+    if (GLOBAL_BT_connected)
+    {
+        Serial.println(F("Disconnecting BT"));
+        SerialBT.disconnect();
+    }
+
     FastLED.clear(true);
     FastLED.show();
     Serial.println(F("LEDs off"));
