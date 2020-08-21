@@ -1,4 +1,9 @@
 #include "settings.h"
+// Get this library from http://bleaklow.com/files/2010/Task.tar.gz (and fix WProgram.h -> Arduino.h)
+// and read http://bleaklow.com/2010/07/20/a_very_simple_arduino_task_manager.html for background and instructions
+#include <Task.h>
+#include <TaskScheduler.h>
+
 #include <elapsedMillis.h>
 #include <FastLED.h>
 #include <MsgPacketizer.h>
@@ -11,7 +16,7 @@ BluetoothSerial SerialBT;
 
 #include "esp_system.h"
 const int wdtTimeout = 1000;  //time in ms to trigger the watchdog
-hw_timer_t *timer = NULL;
+hw_timer_t *GLOBAL_wdtimer = NULL;
 
 void IRAM_ATTR resetModule() {
   ets_printf("reboot\n");
@@ -24,13 +29,34 @@ inline void show_check_interlock()
     FastLED.show();
 }
 
+typedef enum {
+    STATE_BOOT = 0,
+    STATE_IDLE,
+    STATE_CONNECTED_IDLE,
+    STATE_CONNECTED_ACTIVE,
+    STATE_PATTERN,
+    STATE_MAX
+} state_t;
+
+
+RTC_DATA_ATTR state_t GLOBAL_system_state = STATE_BOOT;
+elapsedMillis GLOBAL_last_active_command;
+elapsedMillis GLOBAL_idle_timer;
+
+#include "idlesleep.h"
+IdleChecker idletask(5); // Check idle timers every 5 ms
+#include "iotask.h"
+IOHandler iotask;
+#include "ledupdate.h"
+LEDUpdater ledtask(16); // ~60fps update
+
 void setup()
 {
-    timer = timerBegin(0, 80, true);                  //timer 0, div 80
-    timerAttachInterrupt(timer, &resetModule, true);  //attach callback
-    timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
-    timerAlarmEnable(timer);                          //enable interrupt
-    timerWrite(timer, 0); //reset timer (feed watchdog)
+    GLOBAL_wdtimer = timerBegin(0, 80, true);                  //timer 0, div 80
+    timerAttachInterrupt(GLOBAL_wdtimer, &resetModule, true);  //attach callback
+    timerAlarmWrite(GLOBAL_wdtimer, wdtTimeout * 1000, false); //set time in us
+    timerAlarmEnable(GLOBAL_wdtimer);                          //enable interrupt
+    timerWrite(GLOBAL_wdtimer, 0); //reset timer (feed watchdog)
 
     Serial.begin(115200);
     SerialBT.begin(SPP_DEVICE_NAME);
@@ -41,6 +67,8 @@ void setup()
     MsgPacketizer::subscribe(SerialBT, IDX_CMD,
         [&](const MsgPack::arr_size_t& sz, const String& cmd, const float val)
         {
+            GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
+            GLOBAL_last_active_command = 0;
             Serial.println(F("Got command packet"));
             if (sz.size() == 2) // if array size is correct
             {
@@ -55,6 +83,15 @@ void setup()
                     FastLED.setBrightness(val);
                     Serial.println(F("Brightness set"));
                     // TODO: send ACK reply on BT
+                }
+                if (cmd.equals("off"))
+                {
+                    FastLED.clear(true);
+                    FastLED.show();
+                    Serial.println(F("LEDs off"));
+                    // TODO: send ACK reply on BT
+                    GLOBAL_system_state = STATE_IDLE;
+                    idletask.enter_sleep();
                 }
                 show_check_interlock();
                 
@@ -73,6 +110,9 @@ void setup()
                 Serial.println(F("Input array is incorrect size"));
                 return;
             }
+            // If we get LED data, set the global state as active
+            GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
+            GLOBAL_last_active_command = 0;
             // Copy the vector to the RGB array
             memcpy8(low, inarr.data(), inarr.size());
             show_check_interlock();
@@ -91,6 +131,9 @@ void setup()
                 Serial.println(F("Input array is incorrect size"));
                 return;
             }
+            // If we get LED data, set the global state as active
+            GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
+            GLOBAL_last_active_command = 0;
             // Copy the vector to the RGB array
             memcpy8(high, inarr.data(), inarr.size());
             show_check_interlock();
@@ -102,13 +145,19 @@ void setup()
     Serial.print("My BT name is: ");
     Serial.println(SPP_DEVICE_NAME);
     Serial.println(F("Booted"));
-    timerWrite(timer, 0); //reset timer (feed watchdog)
+    timerWrite(GLOBAL_wdtimer, 0); //reset timer (feed watchdog)
+    GLOBAL_system_state = STATE_IDLE;
 }
 
 
 
 void loop() {
-  timerWrite(timer, 0); //reset timer (feed watchdog)
-  MsgPacketizer::parse();
+  Task *tasks[] = { 
+      &ledtask,
+      &idletask,
+      &iotask
+  };
+  TaskScheduler sched(tasks, NUM_TASKS(tasks));
+  sched.run();
 
 }
