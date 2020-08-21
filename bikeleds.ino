@@ -77,6 +77,16 @@ LEDUpdater ledtask(16); // ~60fps update
 PatternMaker patterntask(16); // ~60fps update
 
 
+inline void connection_active_command()
+{
+    if (GLOBAL_system_state < STATE_CONNECTED_ACTIVE)
+    {
+        GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
+    }
+    GLOBAL_last_active_command = 0;
+    GLOBAL_idle_timer = 0;
+}
+
 void setup()
 {
     GLOBAL_wdtimer = timerBegin(0, 80, true);                  //timer 0, div 80
@@ -95,9 +105,7 @@ void setup()
     MsgPacketizer::subscribe(SerialBT, IDX_CMD,
         [&](const MsgPack::arr_size_t& sz, const String& cmd, const float val)
         {
-            GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
-            GLOBAL_last_active_command = 0;
-            GLOBAL_idle_timer = 0;
+            connection_active_command();
             Serial.println(F("Got command packet"));
             if (sz.size() == 2) // if array size is correct
             {
@@ -131,17 +139,15 @@ void setup()
                     FastLED.show();
                     Serial.println(F("LEDs off"));
                     // TODO: send ACK reply on BT
-                    GLOBAL_system_state = STATE_IDLE;
                     idletask.enter_sleep();
                 }
-                show_check_interlock();
-                
             }
         }
     );
     MsgPacketizer::subscribe(SerialBT, IDX_PATTERNARGS,
         [&](const MsgPack::arr_t<int>& inarr)
         {
+            connection_active_command();
             Serial.println(F("Got patternargs packet"));
             Serial.print(F("arr size "));
             Serial.println(inarr.size(), DEC);
@@ -153,6 +159,7 @@ void setup()
     MsgPacketizer::subscribe(SerialBT, IDX_LEDS_LOW,
         [&](const MsgPack::arr_t<uint8_t>& inarr)
         {
+            connection_active_command();
             Serial.println(F("Got low leds packet"));
             Serial.print(F("arr size "));
             Serial.println(inarr.size(), DEC);
@@ -162,9 +169,6 @@ void setup()
                 Serial.println(F("Input array is incorrect size"));
                 return;
             }
-            // If we get LED data, set the global state as active
-            GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
-            GLOBAL_last_active_command = 0;
             // Copy the vector to the RGB array
             memcpy8(low, inarr.data(), inarr.size());
             show_check_interlock();
@@ -174,6 +178,7 @@ void setup()
     MsgPacketizer::subscribe(SerialBT, IDX_LEDS_HIGH,
         [&](const MsgPack::arr_t<uint8_t>& inarr)
         {
+            connection_active_command();
             Serial.println(F("Got high leds packet"));
             Serial.print(F("arr size "));
             Serial.println(inarr.size(), DEC);
@@ -183,9 +188,6 @@ void setup()
                 Serial.println(F("Input array is incorrect size"));
                 return;
             }
-            // If we get LED data, set the global state as active
-            GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
-            GLOBAL_last_active_command = 0;
             // Copy the vector to the RGB array
             memcpy8(high, inarr.data(), inarr.size());
             show_check_interlock();

@@ -45,6 +45,7 @@ void IdleChecker::enter_sleep()
     Serial.println(F("WDT off"));
 
     Serial.println(F("Bye..."));
+    GLOBAL_system_state = STATE_IDLE;
     esp_deep_sleep_start();
 }
 
