@@ -19,7 +19,7 @@ const int wdtTimeout = 1000;  //time in ms to trigger the watchdog
 hw_timer_t *GLOBAL_wdtimer = NULL;
 
 void IRAM_ATTR resetModule() {
-  ets_printf("reboot\n");
+  ets_printf("\n WDT reboot\n");
   esp_restart();
 }
 
@@ -69,6 +69,7 @@ void setup()
         {
             GLOBAL_system_state = STATE_CONNECTED_ACTIVE;
             GLOBAL_last_active_command = 0;
+            GLOBAL_idle_timer = 0;
             Serial.println(F("Got command packet"));
             if (sz.size() == 2) // if array size is correct
             {
@@ -153,11 +154,12 @@ void setup()
 
 void loop() {
   Task *tasks[] = { 
-      &ledtask,
+      &iotask,
       &idletask,
-      &iotask
+      &ledtask
   };
   TaskScheduler sched(tasks, NUM_TASKS(tasks));
+  Serial.println(F("Starting task scheduler"));
   sched.run();
 
 }

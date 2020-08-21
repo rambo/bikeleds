@@ -21,8 +21,16 @@ LEDUpdater::LEDUpdater(uint32_t _rate)
 {
 }
 
-void LEDUpdater::run(uint32_t runtime)
+void LEDUpdater::run(uint32_t now)
 {
+    timerWrite(GLOBAL_wdtimer, 0); //reset timer (feed watchdog)
+    // Remember to set the next runtime
+    incRunTime(_rate);
+    /*
+    Serial.print(F("now="));
+    Serial.print(now, DEC);
+    Serial.println(F(": Updating LEDs"));
+    */
     show_check_interlock();
 }
 

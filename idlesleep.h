@@ -43,8 +43,29 @@ void IdleChecker::enter_sleep()
 }
 
 
-void IdleChecker::run(uint32_t runtime)
+void IdleChecker::run(uint32_t now)
 {
+    timerWrite(GLOBAL_wdtimer, 0); //reset timer (feed watchdog)
+    // Remember to set the next runtime
+    incRunTime(_rate);
+    /*
+    Serial.print(F("now="));
+    Serial.print(now, DEC);
+    Serial.println(F(": Checking idles"));
+    Serial.print(F("state="));
+    Serial.println(GLOBAL_system_state, DEC);
+    Serial.print(F("last_active_command="));
+    Serial.println(GLOBAL_last_active_command, DEC);
+    Serial.print(F("idle_timer="));
+    Serial.println(GLOBAL_idle_timer, DEC);
+    */
+
+    if (GLOBAL_system_state == STATE_BOOT)
+    {
+        Serial.println(F("In boot state, should be at least idle by now!!!"));
+        GLOBAL_system_state = STATE_IDLE;
+    }
+
     if (GLOBAL_system_state >= STATE_PATTERN)
     {
         // If patterns are running, disable all idle checking
@@ -55,6 +76,7 @@ void IdleChecker::run(uint32_t runtime)
     // If we got new connection, set state and reset the idle timer
     if (SerialBT.connected() && GLOBAL_system_state == STATE_IDLE)
     {
+        Serial.println(F("Got BT connection"));
         GLOBAL_system_state = STATE_CONNECTED_IDLE;
         GLOBAL_idle_timer = 0;
     }
@@ -79,6 +101,7 @@ void IdleChecker::run(uint32_t runtime)
     {
         if (GLOBAL_idle_timer > CONNECTED_MAX_IDLE)
         {
+            Serial.println(F("Connection idling for too long, going to bed"));
             enter_sleep();
         }
     }
@@ -86,6 +109,7 @@ void IdleChecker::run(uint32_t runtime)
     {
         if (GLOBAL_idle_timer > DISCONNECTED_MAX_IDLE)
         {
+            Serial.println(F("Nothing to do, going to bed"));
             enter_sleep();
         }
     }
