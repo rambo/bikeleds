@@ -5,6 +5,7 @@
 #include <TaskScheduler.h>
 
 #include <elapsedMillis.h>
+#include <Bounce2.h>
 #include <FastLED.h>
 #include <MsgPacketizer.h>
 #include "BluetoothSerial.h"
@@ -29,11 +30,6 @@ void IRAM_ATTR resetModule() {
   esp_restart();
 }
 
-inline void show_check_interlock()
-{
-    // TODO: Check the interlock...
-    FastLED.show();
-}
 
 typedef enum {
     STATE_BOOT = 0,
@@ -48,6 +44,9 @@ typedef enum {
 RTC_DATA_ATTR state_t GLOBAL_system_state = STATE_BOOT;
 elapsedMillis GLOBAL_last_active_command;
 elapsedMillis GLOBAL_idle_timer;
+elapsedMillis GLOBAL_pattern_idle_timer;
+Bounce GLOBAL_interlock = Bounce();
+
 
 bool GLOBAL_BT_connected;
 void bt_event_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
@@ -67,14 +66,28 @@ void bt_event_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
 }
 
 
+#include "patterns.h"
+PatternMaker patterntask(16); // ~60fps update
 #include "idlesleep.h"
 IdleChecker idletask(5); // Check idle timers every 5 ms
 #include "iotask.h"
 IOHandler iotask;
 #include "ledupdate.h"
 LEDUpdater ledtask(16); // ~60fps update
-#include "patterns.h"
-PatternMaker patterntask(16); // ~60fps update
+
+inline void show_check_interlock()
+{
+    if (GLOBAL_interlock.read())
+    {
+        Serial.println(F("Interlocked, clearing LEDs"));
+        if (GLOBAL_system_state == STATE_PATTERN)
+        {
+            patterntask.stop_pattern();
+        }
+        FastLED.clear(true);
+    }
+    FastLED.show();
+}
 
 
 inline void connection_active_command()
@@ -85,6 +98,7 @@ inline void connection_active_command()
     }
     GLOBAL_last_active_command = 0;
     GLOBAL_idle_timer = 0;
+    GLOBAL_pattern_idle_timer = 0;
 }
 
 void setup()
@@ -94,6 +108,10 @@ void setup()
     timerAlarmWrite(GLOBAL_wdtimer, wdtTimeout * 1000, false); //set time in us
     timerAlarmEnable(GLOBAL_wdtimer);                          //enable interrupt
     timerWrite(GLOBAL_wdtimer, 0); //reset timer (feed watchdog)
+
+    pinMode(INTERLOCK_PIN, INPUT);
+    GLOBAL_interlock.attach(INTERLOCK_PIN);
+    GLOBAL_interlock.interval(5); // interval in ms
 
     Serial.begin(115200);
     SerialBT.begin(SPP_DEVICE_NAME);

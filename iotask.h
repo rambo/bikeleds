@@ -26,6 +26,16 @@ IOHandler::IOHandler()
 bool IOHandler::canRun(uint32_t now)
 {
     timerWrite(GLOBAL_wdtimer, 0); //reset timer (feed watchdog)
+    GLOBAL_interlock.update();
+    if (GLOBAL_interlock.changed())
+    {
+        Serial.println(F("Interlock state changed"));
+    }
+    if (GLOBAL_interlock.read())
+    {
+        Serial.println(F("Interlock tripped!!"));
+        idletask.enter_sleep();
+    }
     MsgPacketizer::post();  // If there was something to send, send it
     /*    
     Serial.print(F("now="));

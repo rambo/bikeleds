@@ -31,6 +31,11 @@ void IdleChecker::enter_sleep()
         Serial.println(F("Disconnecting BT"));
         SerialBT.disconnect();
     }
+    if (GLOBAL_system_state == STATE_PATTERN)
+    {
+        Serial.println(F("Stopping pattern"));
+        patterntask.stop_pattern();
+    }
 
     FastLED.clear(true);
     FastLED.show();
