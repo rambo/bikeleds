@@ -11,6 +11,7 @@
 #define IDX_CMD 0x1
 #define IDX_LEDS_LOW 0x2
 #define IDX_LEDS_HIGH 0x3
+#define IDX_PATTERNARGS 0x4
 
 #define CONNECTED_MAX_IDLE 60*5*1000 // 5 minutes of idle will sleep even if connected
 #define CONNECTED_ACTIVE_TIMEOUT 2*1000

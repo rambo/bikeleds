@@ -64,7 +64,6 @@ void bt_event_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         Serial.println(F("ESP_SPP_CLOSE_EVT"));
         GLOBAL_BT_connected = false;
     }
-    // There was activity on BT so reset the idle timer
 }
 
 
@@ -74,6 +73,9 @@ IdleChecker idletask(5); // Check idle timers every 5 ms
 IOHandler iotask;
 #include "ledupdate.h"
 LEDUpdater ledtask(16); // ~60fps update
+#include "patterns.h"
+PatternMaker patterntask(16); // ~60fps update
+
 
 void setup()
 {
@@ -105,6 +107,18 @@ void setup()
                 Serial.print(val, DEC);
                 Serial.println();
 
+                if (cmd.equals("pattern"))
+                {
+                    if (!val)
+                    {
+                        patterntask.stop_pattern();
+                    }
+                    else
+                    {
+                        patterntask.start_pattern((pattern_t)static_cast<int>(val));
+                    }
+                    // TODO: send ACK reply on BT
+                }
                 if (cmd.equals("brightness"))
                 {
                     FastLED.setBrightness(val);
@@ -123,6 +137,17 @@ void setup()
                 show_check_interlock();
                 
             }
+        }
+    );
+    MsgPacketizer::subscribe(SerialBT, IDX_PATTERNARGS,
+        [&](const MsgPack::arr_t<int>& inarr)
+        {
+            Serial.println(F("Got patternargs packet"));
+            Serial.print(F("arr size "));
+            Serial.println(inarr.size(), DEC);
+            patterntask.pattern_args.clear();
+            patterntask.pattern_args.assign(inarr.begin(), inarr.end());
+            // TODO: send ACK reply on BT
         }
     );
     MsgPacketizer::subscribe(SerialBT, IDX_LEDS_LOW,
@@ -182,6 +207,7 @@ void loop() {
   Task *tasks[] = { 
       &iotask,
       &idletask,
+      &patterntask,
       &ledtask
   };
   TaskScheduler sched(tasks, NUM_TASKS(tasks));
