@@ -1,4 +1,5 @@
 #include "settings.h"
+// Use minimal SPIFFS
 // Get this library from http://bleaklow.com/files/2010/Task.tar.gz (and fix WProgram.h -> Arduino.h)
 // and read http://bleaklow.com/2010/07/20/a_very_simple_arduino_task_manager.html for background and instructions
 #include <Task.h>
@@ -37,6 +38,7 @@ typedef enum {
     STATE_CONNECTED_IDLE,
     STATE_CONNECTED_ACTIVE,
     STATE_PATTERN,
+    STATE_OTA,
     STATE_MAX
 } state_t;
 
@@ -74,6 +76,7 @@ IdleChecker idletask(5); // Check idle timers every 5 ms
 IOHandler iotask;
 #include "ledupdate.h"
 LEDUpdater ledtask(16); // ~60fps update
+#include "ota.h"
 
 inline void show_check_interlock()
 {
@@ -151,6 +154,14 @@ void setup()
                     Serial.println(F("Brightness set"));
                     // TODO: send ACK reply on BT
                 }
+                if (cmd.equals("ota"))
+                {
+                    patterntask.stop_pattern();
+                    FastLED.clear(true);
+                    FastLED.show();
+                    init_ota();
+                }
+
                 if (cmd.equals("off"))
                 {
                     FastLED.clear(true);
@@ -233,5 +244,4 @@ void loop() {
   TaskScheduler sched(tasks, NUM_TASKS(tasks));
   Serial.println(F("Starting task scheduler"));
   sched.run();
-
 }

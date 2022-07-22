@@ -2,6 +2,10 @@
 #define SETTINGS_H
 
 #define SPP_DEVICE_NAME "DucatiLEDs"
+#define OTA_WIFI_NAME "DucatiLEDs-OTA"
+#define OTA_WIFI_PASSWD "Do Not Brick"
+// Device IP is "10.46.75.10", "gw" is .1 and netmask is /24 (255.255.255.0)
+#define OTA_WEB_PORT 80
 #define DEFAULT_BRIGHTNESS 64
 #define LOW_DP 4
 #define LOW_NL 31
@@ -19,5 +23,6 @@
 #define DISCONNECTED_MAX_IDLE 10*1000
 #define IDLE_SLEEP_TIME 5*1000
 #define PATTERN_MAX_IDLE 60*30*1000 // 30 minutes of idle will sleep even if on pattern
+#define OTA_MAX_IDLE 60*10*1000 // 10 minutes of idle will sleep in OTA
 
 #endif

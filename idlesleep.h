@@ -72,6 +72,15 @@ void IdleChecker::run(uint32_t now)
     Serial.println(GLOBAL_idle_timer, DEC);
     */
 
+    if (GLOBAL_system_state == STATE_OTA)
+    {
+        if (GLOBAL_idle_timer > OTA_MAX_IDLE)
+        {
+            Serial.println(F("OTA idling for too long, going to bed"));
+            enter_sleep();
+        }
+    }
+
     if (GLOBAL_system_state == STATE_BOOT)
     {
         Serial.println(F("In boot state, should be at least idle by now!!!"));

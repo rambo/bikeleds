@@ -124,9 +124,9 @@ void PatternMaker::run_breathe()
   // a colored dot sweeping back and forth, with fading trails
   low.fadeToBlackBy(pattern_args[4]);
  #if LOW_NL < 254
-  int width = beatsin8( pattern_args[3], 0, LOW_MIDX );
+  int width = beatsin8( pattern_args[3], 0, LOW_MIDX/2 );
  #else
-  int width = beatsin16( pattern_args[3], 0, LOW_MIDX );
+  int width = beatsin16( pattern_args[3], 0, LOW_MIDX/2 );
  #endif
   int left = LOW_MIDX/2 - width;
   if (left < 0) { 
