@@ -4,9 +4,13 @@
 #include <Arduino.h>
 #include <Task.h>
 
+#define LOW_MIDX (LOW_NL-1)
+#define HIGH_MIDX (HIGH_NL-1)
+
 typedef enum {
     PATTERN_NONE = 0,
     PATTERN_SINELON,
+    PATTERN_BREATHE,
     PATTERN_MAX
 } pattern_t;
 
@@ -28,6 +32,8 @@ private:
     bool _stop;
     void init_sinelon();
     void run_sinelon();
+    void init_breathe();
+    void run_breathe();
 };
 
 PatternMaker::PatternMaker(uint32_t _rate)
@@ -62,19 +68,79 @@ void PatternMaker::init_sinelon()
     }
 }
 
+void PatternMaker::init_breathe()
+{
+    if (!pattern_args.empty() && pattern_args.size() < 3)
+    {
+        Serial.println(F("init_breathe: invalid pattern args"));
+        pattern_args.clear();
+    }
+    if (pattern_args.empty())
+    {
+        // Dot HSV
+        pattern_args.push_back(204);
+        pattern_args.push_back(153);
+        pattern_args.push_back(255);
+    }
+    if (pattern_args.size() < 4)
+    {
+        // breathe BPM
+        pattern_args.push_back(5);
+    }
+    if (pattern_args.size() < 5)
+    {
+        // Fade speed
+        pattern_args.push_back(20);
+    }
+}
+
+
 void PatternMaker::run_sinelon()
 {
   if (pattern_args.size() != 5)
   {
-        Serial.println(F("Invalid pattern args (should not hit this unless someone updated them mid-pattern)"));
+        Serial.println(F("run_sinelon: Invalid pattern args (should not hit this unless someone updated them mid-pattern)"));
         pattern_args.clear();
         init_sinelon();
   }
   // a colored dot sweeping back and forth, with fading trails
   high.fadeToBlackBy(pattern_args[4]);
-  int pos = beatsin16( pattern_args[3], 0, HIGH_NL-1 );
+ #if HIGH_NL < 254
+  int pos = beatsin8( pattern_args[3], 0, HIGH_MIDX );
+ #else
+  int pos = beatsin16( pattern_args[3], 0, HIGH_MIDX );
+ #endif
   high[pos] += CHSV( pattern_args[0], pattern_args[1], pattern_args[2]);
 }
+
+void PatternMaker::run_breathe()
+{
+  if (pattern_args.size() != 5)
+  {
+        Serial.println(F("run_breathe: Invalid pattern args (should not hit this unless someone updated them mid-pattern)"));
+        pattern_args.clear();
+        init_breathe();
+  }
+  // a colored dot sweeping back and forth, with fading trails
+  low.fadeToBlackBy(pattern_args[4]);
+ #if LOW_NL < 254
+  int width = beatsin8( pattern_args[3], 0, LOW_MIDX );
+ #else
+  int width = beatsin16( pattern_args[3], 0, LOW_MIDX );
+ #endif
+  int left = LOW_MIDX/2 - width;
+  if (left < 0) { 
+    Serial.println(F("run_breathe: left too low"));
+    left = 0;
+  };
+  int right = LOW_MIDX/2 + width;
+  if (right > LOW_MIDX) {
+    Serial.println(F("run_breathe: right too high"));
+    right=LOW_MIDX;
+  }
+  low(left,right) = CHSV( pattern_args[0], pattern_args[1], pattern_args[2]);
+}
+
 
 void PatternMaker::start_pattern(pattern_t pnum)
 {
@@ -93,6 +159,9 @@ void PatternMaker::start_pattern(pattern_t pnum)
           return;
         case PATTERN_SINELON:
           init_sinelon();
+          break;
+        case PATTERN_BREATHE:
+          init_breathe();
           break;
     }
     GLOBAL_pattern_idle_timer = 0;
@@ -130,6 +199,9 @@ void PatternMaker::run(uint32_t now)
           return;
         case PATTERN_SINELON:
           run_sinelon();
+          break;
+        case PATTERN_BREATHE:
+          run_breathe();
           break;
     }
 }
