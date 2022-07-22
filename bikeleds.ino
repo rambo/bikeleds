@@ -9,17 +9,9 @@
 #include <Bounce2.h>
 #include <FastLED.h>
 #include <MsgPacketizer.h>
-#include "BluetoothSerial.h"
-#include "esp_bt.h"
-#include "esp_bt_main.h"
-#include "esp_gap_bt_api.h"
-#include "esp_bt_device.h"
-#include "esp_spp_api.h"
 
 CRGBArray<LOW_NL> low;
 CRGBArray<HIGH_NL> high;
-BluetoothSerial SerialBT;
-
 
 
 #include "esp_system.h"
@@ -51,22 +43,8 @@ Bounce GLOBAL_interlock = Bounce();
 
 
 bool GLOBAL_BT_connected;
-void bt_event_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
-{
-    Serial.println(F("BT Activity, reset idle timer"));
-    GLOBAL_idle_timer = 0;
-    if (event == ESP_SPP_SRV_OPEN_EVT)
-    {
-        Serial.println(F("ESP_SPP_SRV_OPEN_EVT"));
-        GLOBAL_BT_connected = true;
-    }
-    if (event == ESP_SPP_CLOSE_EVT)
-    {
-        Serial.println(F("ESP_SPP_CLOSE_EVT"));
-        GLOBAL_BT_connected = false;
-    }
-}
 
+#include "blestream.h"
 
 #include "patterns.h"
 PatternMaker patterntask(16); // ~60fps update
@@ -117,13 +95,11 @@ void setup()
     GLOBAL_interlock.interval(5); // interval in ms
 
     Serial.begin(115200);
-    SerialBT.begin(SPP_DEVICE_NAME);
-    SerialBT.register_callback(&bt_event_cb);
     FastLED.addLeds<WS2812B,LOW_DP,GRB>(low,LOW_NL);
     FastLED.addLeds<WS2812B,HIGH_DP,GRB>(high,HIGH_NL);
     FastLED.setBrightness(DEFAULT_BRIGHTNESS);
     
-    MsgPacketizer::subscribe(SerialBT, IDX_CMD,
+    MsgPacketizer::subscribe(*GLOBAL_BLE_Stream, IDX_CMD,
         [&](const MsgPack::arr_size_t& sz, const String& cmd, const float val)
         {
             connection_active_command();
@@ -173,7 +149,7 @@ void setup()
             }
         }
     );
-    MsgPacketizer::subscribe(SerialBT, IDX_PATTERNARGS,
+    MsgPacketizer::subscribe(*GLOBAL_BLE_Stream, IDX_PATTERNARGS,
         [&](const MsgPack::arr_t<int>& inarr)
         {
             connection_active_command();
@@ -185,7 +161,7 @@ void setup()
             // TODO: send ACK reply on BT
         }
     );
-    MsgPacketizer::subscribe(SerialBT, IDX_LEDS_LOW,
+    MsgPacketizer::subscribe(*GLOBAL_BLE_Stream, IDX_LEDS_LOW,
         [&](const MsgPack::arr_t<uint8_t>& inarr)
         {
             connection_active_command();
@@ -204,7 +180,7 @@ void setup()
             // TODO: send ACK reply on BT
         }
     );
-    MsgPacketizer::subscribe(SerialBT, IDX_LEDS_HIGH,
+    MsgPacketizer::subscribe(*GLOBAL_BLE_Stream, IDX_LEDS_HIGH,
         [&](const MsgPack::arr_t<uint8_t>& inarr)
         {
             connection_active_command();
@@ -225,8 +201,8 @@ void setup()
     );
     
     
-    Serial.print("My BT name is: ");
-    Serial.println(SPP_DEVICE_NAME);
+    Serial.print("My BLE service name is: ");
+    Serial.println(BLE_SERVICE_NAME);
     Serial.println(F("Booted"));
     timerWrite(GLOBAL_wdtimer, 0); //reset timer (feed watchdog)
     GLOBAL_system_state = STATE_IDLE;

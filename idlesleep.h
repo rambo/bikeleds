@@ -28,8 +28,8 @@ void IdleChecker::enter_sleep()
     Serial.println(F("Going to sleep"));
     if (GLOBAL_BT_connected)
     {
-        Serial.println(F("Disconnecting BT"));
-        SerialBT.disconnect();
+        //Serial.println(F("Disconnecting BT"));
+        // FIXME: drop 
     }
     if (GLOBAL_system_state == STATE_PATTERN)
     {

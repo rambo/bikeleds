@@ -43,7 +43,7 @@ bool IOHandler::canRun(uint32_t now)
     Serial.println(F(": Checking serial"));
     */
     // Go to parsers if we had data to parse
-    return (Serial.available() || SerialBT.available());
+    return (Serial.available() || GLOBAL_BLE_Stream->available());
 }
 
 void IOHandler::run(uint32_t now)

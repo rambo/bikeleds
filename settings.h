@@ -1,10 +1,10 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define SPP_DEVICE_NAME "DucatiLEDs"
+#define BLE_SERVICE_NAME "DucatiLEDs"
 #define OTA_WIFI_NAME "DucatiLEDs-OTA"
 #define OTA_WIFI_PASSWD "Do Not Brick"
-// Device IP is "10.46.75.10", "gw" is .1 and netmask is /24 (255.255.255.0)
+// Device IP is "10.46.75.10", "gw" is .1
 #define OTA_WEB_PORT 80
 #define DEFAULT_BRIGHTNESS 64
 #define LOW_DP 4
