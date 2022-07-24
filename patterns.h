@@ -78,14 +78,14 @@ void PatternMaker::init_breathe()
     if (pattern_args.empty())
     {
         // Dot HSV
-        pattern_args.push_back(204);
-        pattern_args.push_back(153);
-        pattern_args.push_back(255);
+        pattern_args.push_back(4);
+        pattern_args.push_back(240);
+        pattern_args.push_back(240);
     }
     if (pattern_args.size() < 4)
     {
         // breathe BPM
-        pattern_args.push_back(5);
+        pattern_args.push_back(15);
     }
     if (pattern_args.size() < 5)
     {
@@ -149,6 +149,7 @@ void PatternMaker::start_pattern(pattern_t pnum)
         Serial.println(F("Invalid pattern value"));
         return;
     }
+    stop_pattern();
     internal_pattern_args.clear();
     active_pattern = pnum;
     // Insert pattern initializations here

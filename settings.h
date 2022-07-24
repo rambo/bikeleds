@@ -22,7 +22,8 @@
 #define CONNECTED_ACTIVE_TIMEOUT 2*1000
 #define DISCONNECTED_MAX_IDLE 10*1000
 #define IDLE_SLEEP_TIME 5*1000
-#define PATTERN_MAX_IDLE 60*30*1000 // 30 minutes of idle will sleep even if on pattern
+//#define PATTERN_MAX_IDLE 60*30*1000 // 30 minutes of idle will sleep even if on pattern
+#define PATTERN_MAX_IDLE 60*120*1000 // 120 minutes of idle will sleep even if on pattern
 #define OTA_MAX_IDLE 60*10*1000 // 10 minutes of idle will sleep in OTA
 
 #endif
